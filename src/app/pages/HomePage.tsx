@@ -11,8 +11,8 @@ import { SampleDataGenerator } from '../components/SampleDataGenerator';
 
 export function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { data, setData, clearData } = useData();
-  const { logout } = useAuth();
+  const { data, setData, clearData, error: dataError } = useData();
+  const { logout, getPassword } = useAuth();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = React.useState(false);
 
@@ -35,7 +35,8 @@ export function HomePage() {
         return;
       }
 
-      setData(processedData);
+      // Pass the admin password to save data to API
+      await setData(processedData, getPassword());
       toast.success(`Successfully processed ${processedData.records.length} records from ${processedData.years.length} years`);
       
       // Navigate to the most recent year
@@ -53,10 +54,14 @@ export function HomePage() {
     fileInputRef.current?.click();
   };
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     if (window.confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
-      clearData();
-      toast.success('All data has been cleared');
+      try {
+        await clearData(getPassword());
+        toast.success('All data has been cleared');
+      } catch (error) {
+        toast.error('Failed to clear data');
+      }
     }
   };
 
@@ -90,6 +95,37 @@ export function HomePage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Error Message */}
+        {dataError && (
+          <div className="max-w-2xl mx-auto mb-6">
+            <Card className="border-red-800 bg-red-900/20 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-3">
+                  <div className="size-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="size-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-red-400 mb-1">Cloud Storage Error</h3>
+                    <p className="text-sm text-red-300/90">{dataError}</p>
+                    <div className="mt-3 p-3 rounded bg-slate-900/50 border border-slate-800">
+                      <p className="text-xs text-slate-400 mb-2"><strong>To fix this:</strong></p>
+                      <ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
+                        <li>Test API: Visit <a href="/api/health" target="_blank" className="text-cyan-400 hover:underline">/api/health</a> (should show JSON, not error)</li>
+                        <li>If API works but data doesn't: Set up Vercel KV database</li>
+                        <li>If API shows error: Redeploy with correct vercel.json</li>
+                        <li>Check browser console for detailed error logs</li>
+                      </ol>
+                      <p className="text-xs text-cyan-400 mt-2">📘 See API_ROUTING_FIXED.md for complete guide</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {!data ? (
           // Upload Section
           <div className="max-w-2xl mx-auto">
